@@ -103,6 +103,12 @@ const AP_Param::GroupInfo AP_Camera_Params::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("_VFOV", 13, AP_Camera_Params, vfov, 0),
 
+    // @Param: _PROXY_TYPE
+    // @DisplayName: The shutter type the proxy will refer to
+    // @Description: how to trigger the camera to take a picture
+    // @Values: 0:None, 1:Servo, 2:Relay, 3:GoPro in Solo Gimbal, 4:Mount (Siyi), 5:MAVLink, 6:MAVLinkCamV2, 7:Scripting
+    // @User: Standard
+    AP_GROUPINFO_FLAGS("_PROXY_TYPE",  14, AP_Camera_Params, proxy_type, 0, AP_PARAM_FLAG_ENABLE),
     AP_GROUPEND
 
 };

@@ -73,6 +73,9 @@ public:
 #if AP_CAMERA_SCRIPTING_ENABLED
         SCRIPTING = 7,  // Scripting backend
 #endif
+#if AP_CAMERA_PROXY_ENABLED
+        PROXY = 8,  // Proxy backend
+#endif
     };
 
     // detect and initialise backends

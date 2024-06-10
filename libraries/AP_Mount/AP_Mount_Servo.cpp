@@ -3,6 +3,7 @@
 
 #include <AP_AHRS/AP_AHRS.h>
 #include <GCS_MAVLink/GCS_MAVLink.h>
+#include <GCS_MAVLink/GCS.h>
 
 extern const AP_HAL::HAL& hal;
 

@@ -15,6 +15,9 @@
 #include "AP_Camera_MAVLink.h"
 #include "AP_Camera_MAVLinkCamV2.h"
 #include "AP_Camera_Scripting.h"
+#include "AP_Camera_Proxy.h"
+#include <GCS_MAVLink/GCS.h>
+
 
 const AP_Param::GroupInfo AP_Camera::var_info[] = {
 
@@ -239,6 +242,11 @@ void AP_Camera::init()
         case CameraType::SCRIPTING:
             _backends[instance] = NEW_NOTHROW AP_Camera_Scripting(*this, _params[instance], instance);
             break;
+#endif
+#if AP_CAMERA_PROXY_ENABLED
+        // check for Camera Proxy
+        case CameraType::PROXY:
+            _backends[instance] = new AP_Camera_Proxy(*this, _params[instance], instance);
 #endif
         case CameraType::NONE:
             break;
