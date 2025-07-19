@@ -765,6 +765,20 @@ bool AP_Camera::is_tracking_object_visible(uint8_t instance)
     return backend->is_tracking_object_visible();
 }
 
+
+bool AP_Camera::is_tracking_object_visible_near_center(uint8_t instance, float object_follow_margin)
+{
+    WITH_SEMAPHORE(_rsem);
+
+    auto *backend = get_instance(instance);
+    if (backend == nullptr) {
+        return false;
+    }
+
+    // call each instance
+    return backend->is_tracking_object_visible_near_center(object_follow_margin);
+}
+
 #endif
 
 #if AP_CAMERA_SET_CAMERA_SOURCE_ENABLED

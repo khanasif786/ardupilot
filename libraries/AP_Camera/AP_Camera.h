@@ -145,6 +145,7 @@ public:
     bool set_tracking(TrackingType tracking_type, const Vector2f& top_left, const Vector2f& bottom_right);
     bool set_tracking(uint8_t instance, TrackingType tracking_type, const Vector2f& top_left, const Vector2f& bottom_right);
     bool is_tracking_object_visible(uint8_t instance);
+    bool is_tracking_object_visible_near_center(uint8_t instance, float _object_follow_margin);
 #endif
 
 #if AP_CAMERA_SET_CAMERA_SOURCE_ENABLED

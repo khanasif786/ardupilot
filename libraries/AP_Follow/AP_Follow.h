@@ -154,6 +154,7 @@ private:
     AP_Int8     _alt_type;          // altitude source for follow mode
     AC_P        _p_pos;             // position error P controller
     AP_Int16    _options;           // options for mount behaviour follow mode
+    AP_Float    _object_follow_margin; // object follow margin from the center of the frame
 
     // local variables
     uint32_t _last_location_update_ms;  // system time of last position update
@@ -166,6 +167,8 @@ private:
     float _dist_to_target;          // latest distance to target in meters (for reporting purposes)
     float _bearing_to_target;       // latest bearing to target in degrees (for reporting purposes)
     bool _offsets_were_zero;        // true if offsets were originally zero and then initialised to the offset from lead vehicle
+    Location _last_object_location; // last location of the object
+    bool _last_location_valid = false;
 
     // setup jitter correction with max transport lag of 3s
     JitterCorrection _jitter{3000};

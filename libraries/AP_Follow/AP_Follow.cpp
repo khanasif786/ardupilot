@@ -143,6 +143,12 @@ const AP_Param::GroupInfo AP_Follow::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("_OPTIONS", 11, AP_Follow, _options, 0),
 
+    // @Param: _OBJ_FOLL_M
+    // @DisplayName: Object follow margin
+    // @Description: Object follow margin
+    // @User: Standard
+    AP_GROUPINFO("_OBJ_FOLL_M", 12, AP_Follow, _object_follow_margin, 0.05),
+
     AP_GROUPEND
 };
 
@@ -201,16 +207,25 @@ bool AP_Follow::get_target_location_and_velocity(Location &loc, Vector3f &vel_ne
         Quaternion quat;
         Location poi_loc;
         if (AP_Camera::get_singleton()->is_tracking_object_visible(0)) {
-            if (AP_Mount::get_singleton()->get_poi(instance,quat,loc,poi_loc)) {
-                poi_loc.change_alt_frame(last_loc.get_alt_frame());
-                if (last_loc.lat == poi_loc.lat && last_loc.lng == poi_loc.lng && last_loc.alt == poi_loc.alt) {
-                    // Do nothing
+            float obj_foll_margin = _object_follow_margin;
+            if (AP_Camera::get_singleton()->is_tracking_object_visible_near_center(0, obj_foll_margin)) {
+                if (AP_Mount::get_singleton()->get_poi(instance,quat,loc,poi_loc)) {
+                    poi_loc.change_alt_frame(last_loc.get_alt_frame());
+                    if (last_loc.lat == poi_loc.lat && last_loc.lng == poi_loc.lng && last_loc.alt == poi_loc.alt) {
+                        // Do nothing
+                    } else {
+                        last_loc = poi_loc;
+                        _last_location_update_ms = AP_HAL::millis();
+                    }
+                    _last_location_valid = true;
+                    _last_object_location = poi_loc;
                 } else {
-                    last_loc = poi_loc;
-                    _last_location_update_ms = AP_HAL::millis();
+                    return false;
                 }
             } else {
-                return false;
+                if (_last_location_valid) {
+                    loc = _last_object_location;
+                }
             }
         } else {
             printf("No objet detected");

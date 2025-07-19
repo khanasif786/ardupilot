@@ -94,6 +94,18 @@ public:
         return false;
     }
 
+    bool is_tracking_object_visible_near_center(float object_follow_margin) {
+        if (camera_settings._cam_tracking_status.tracking_status & CAMERA_TRACKING_STATUS_FLAGS::CAMERA_TRACKING_STATUS_FLAGS_ACTIVE) {
+            float center_x =  (camera_settings._cam_tracking_status.rec_bottom_x + camera_settings._cam_tracking_status.rec_top_x)/2.0;
+            float center_y =  (camera_settings._cam_tracking_status.rec_bottom_y + camera_settings._cam_tracking_status.rec_top_y)/2.0;
+            // Hardcoded values think of an idea to fix these
+            if (center_x >= (0.5 - object_follow_margin) && center_x <= (0.5 + object_follow_margin) && center_y >= (0.5 - object_follow_margin) && center_y <= (0.5 + object_follow_margin)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 #if AP_CAMERA_TRACKING_ENABLED
     // default tracking supported by camera
     virtual bool set_tracking_internal(TrackingType tracking_type, const Vector2f& top_left, const Vector2f& bottom_right) { return false; }
