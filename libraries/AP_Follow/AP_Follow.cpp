@@ -210,7 +210,14 @@ bool AP_Follow::get_target_location_and_velocity(Location &loc, Vector3f &vel_ne
             float obj_foll_margin = _object_follow_margin;
             if (AP_Camera::get_singleton()->is_tracking_object_visible_near_center(0, obj_foll_margin)) {
                 if (AP_Mount::get_singleton()->get_poi(instance,quat,loc,poi_loc)) {
+                    // -35.36326196 149.16523741 584.9
                     poi_loc.change_alt_frame(last_loc.get_alt_frame());
+                    last_loc = poi_loc;
+                    Location ref(-353632619,1491652374,0,Location::AltFrame::ABOVE_HOME);
+                    
+                    ref.change_alt_frame(last_loc.get_alt_frame());
+                    gcs().send_text(MAV_SEVERITY_WARNING, "The distance is %f, poi_lat= %d, poi_lng=%d", ref.get_distance(poi_loc), poi_loc.lat, poi_loc.lng);
+                    return false;
                     if (last_loc.lat == poi_loc.lat && last_loc.lng == poi_loc.lng && last_loc.alt == poi_loc.alt) {
                         // Do nothing
                     } else {

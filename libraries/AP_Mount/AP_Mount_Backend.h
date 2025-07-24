@@ -261,7 +261,11 @@ protected:
 
 #if AP_MOUNT_POI_TO_LATLONALT_ENABLED
     // calculate the Location that the gimbal is pointing at
-    void calculate_poi();
+    void calculate_poi_with_object_tracking();
+    // Calculate object direction based on camera characteristics and object position
+    bool calculate_object_direction_offset(const Vector2f& obj_frame_pos, Vector3f& angle_offset_rad);
+    // Get object position within camera frame from tracking system
+    bool get_object_position_in_frame(Vector2f& normalized_pos, float& confidence);
 #endif
 
     // change to RC_TARGETTING mode if rc inputs have changed by more than the dead zone
@@ -324,6 +328,7 @@ protected:
         Location loc;             // gimbal location used for poi calculation
         Location poi_loc;         // location of the POI
         Quaternion att_quat;      // attitude quaternion of the gimbal
+        bool used_object_position;// If using object position instead center of the frame
     } poi_calculation;
 #endif
 

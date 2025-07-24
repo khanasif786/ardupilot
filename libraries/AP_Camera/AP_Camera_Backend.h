@@ -106,6 +106,28 @@ public:
         return false;
     }
 
+    bool get_hfov(float &hfov) {
+        hfov = horizontal_fov();
+        return true;
+    }
+
+    bool get_vfov(float &vfov) {
+        vfov = vertical_fov();
+        return true;
+    }
+
+    bool get_tracked_object_position(Vector2f& normalized_pos, float& confidence) {
+        if (camera_settings._cam_tracking_status.tracking_status & CAMERA_TRACKING_STATUS_FLAGS::CAMERA_TRACKING_STATUS_FLAGS_ACTIVE) {
+            float center_x =  (camera_settings._cam_tracking_status.rec_bottom_x + camera_settings._cam_tracking_status.rec_top_x)/2.0;
+            float center_y =  (camera_settings._cam_tracking_status.rec_bottom_y + camera_settings._cam_tracking_status.rec_top_y)/2.0;
+            normalized_pos.x = center_x;
+            normalized_pos.y = center_y;
+            confidence = 1.0;
+            return true;
+        }
+        return false;
+    }
+
 #if AP_CAMERA_TRACKING_ENABLED
     // default tracking supported by camera
     virtual bool set_tracking_internal(TrackingType tracking_type, const Vector2f& top_left, const Vector2f& bottom_right) { return false; }

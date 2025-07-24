@@ -765,6 +765,44 @@ bool AP_Camera::is_tracking_object_visible(uint8_t instance)
     return backend->is_tracking_object_visible();
 }
 
+bool AP_Camera::get_tracked_object_position(uint8_t instance, Vector2f& normalized_pos, float& confidence)
+{
+    WITH_SEMAPHORE(_rsem);
+
+    auto *backend = get_instance(instance);
+    if (backend == nullptr) {
+        return false;
+    }
+
+    // call each instance
+    return backend->get_tracked_object_position(normalized_pos, confidence);
+}
+
+bool AP_Camera::get_hfov(uint8_t instance, float &hfov)
+{
+    WITH_SEMAPHORE(_rsem);
+
+    auto *backend = get_instance(instance);
+    if (backend == nullptr) {
+        return false;
+    }
+
+    // call each instance
+    return backend->get_hfov(hfov);
+}
+
+bool AP_Camera::get_vfov(uint8_t instance, float &vfov)
+{
+    WITH_SEMAPHORE(_rsem);
+
+    auto *backend = get_instance(instance);
+    if (backend == nullptr) {
+        return false;
+    }
+
+    // call each instance
+    return backend->get_vfov(vfov);
+}
 
 bool AP_Camera::is_tracking_object_visible_near_center(uint8_t instance, float object_follow_margin)
 {

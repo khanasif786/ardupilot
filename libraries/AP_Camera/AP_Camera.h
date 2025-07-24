@@ -145,8 +145,12 @@ public:
     bool set_tracking(TrackingType tracking_type, const Vector2f& top_left, const Vector2f& bottom_right);
     bool set_tracking(uint8_t instance, TrackingType tracking_type, const Vector2f& top_left, const Vector2f& bottom_right);
     bool is_tracking_object_visible(uint8_t instance);
+    bool get_tracked_object_position(uint8_t instance, Vector2f& normalized_pos, float& confidence);
     bool is_tracking_object_visible_near_center(uint8_t instance, float _object_follow_margin);
 #endif
+
+    bool get_hfov(uint8_t instance, float& hfov);
+    bool get_vfov(uint8_t instance, float& vfov);
 
 #if AP_CAMERA_SET_CAMERA_SOURCE_ENABLED
     // set camera lens as a value from 0 to 5, instance starts from 0

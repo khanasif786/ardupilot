@@ -4,6 +4,7 @@
 #include <GCS_MAVLink/GCS.h>
 #include <AP_Logger/AP_Logger.h>
 #include <AP_Terrain/AP_Terrain.h>
+#include <AP_Camera/AP_Camera.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -20,7 +21,7 @@ void AP_Mount_Backend::init()
 
 #if AP_MOUNT_POI_TO_LATLONALT_ENABLED
     // create a calculation thread for poi.
-    if (!hal.scheduler->thread_create(FUNCTOR_BIND_MEMBER(&AP_Mount_Backend::calculate_poi, void),
+    if (!hal.scheduler->thread_create(FUNCTOR_BIND_MEMBER(&AP_Mount_Backend::calculate_poi_with_object_tracking, void),
                                       "mount_calc_poi",
                                       8192, AP_HAL::Scheduler::PRIORITY_IO, -1)) {
         GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "Mount: failed to start POI thread");
@@ -507,7 +508,7 @@ bool AP_Mount_Backend::get_poi(uint8_t instance, Quaternion &quat, Location &loc
 }
 
 // calculate the Location that the gimbal is pointing at
-void AP_Mount_Backend::calculate_poi()
+void AP_Mount_Backend::calculate_poi_with_object_tracking()
 {
     while (true) {
         // run this loop at 10hz
@@ -532,8 +533,34 @@ void AP_Mount_Backend::calculate_poi()
         // change vehicle alt to AMSL
         curr_loc.change_alt_frame(Location::AltFrame::ABSOLUTE);
 
-        // project forward from vehicle looking for terrain
-        // start testing at vehicle's location
+        // Get gimbal attitude
+        Quaternion quat;
+        if (!get_attitude_quaternion(quat)) {
+            continue;
+        }
+
+        // Calculate base direction (gimbal center pointing direction)
+        float mount_pitch_deg = degrees(quat.get_euler_pitch());
+        float mount_yaw_ef_deg = wrap_180(degrees(quat.get_euler_yaw()) + degrees(ahrs.get_yaw()));
+
+        // Try to get object position within camera frame
+        Vector2f obj_frame_pos;
+        float confidence;
+        Vector3f angle_offset_rad;
+        bool use_object_position = false;
+        
+        if (get_object_position_in_frame(obj_frame_pos, confidence) && confidence > 0.5f) {
+            // Object detected with good confidence
+            if (calculate_object_direction_offset(obj_frame_pos, angle_offset_rad)) {
+                // Adjust gimbal direction to point at object instead of center
+                gcs().send_text(MAV_SEVERITY_INFO, "mount_pitch_deg= %f, mount_yaw_ef_deg=%f, angle_offset_rad.y=%f, angle_offset_rad.z=%f", mount_pitch_deg ,mount_yaw_ef_deg ,angle_offset_rad.y, angle_offset_rad.z);
+                mount_pitch_deg += degrees(angle_offset_rad.y);
+                mount_yaw_ef_deg += degrees(angle_offset_rad.z);
+                use_object_position = true;
+            }
+        }
+
+        // Now perform terrain intersection with adjusted direction
         Location test_loc = curr_loc;
         Location prev_test_loc = curr_loc;
 
@@ -544,17 +571,9 @@ void AP_Mount_Backend::calculate_poi()
             continue;
         }
 
-        // retrieve gimbal attitude
-        Quaternion quat;
-        if (!get_attitude_quaternion(quat)) {
-            // gimbal attitude unavailable
-            continue;
-        }
-
         // iteratively move test_loc forward until its alt-above-sea-level is below terrain-alt-above-sea-level
-        const float dist_increment_m = MAX(terrain->get_grid_spacing(), 10);
-        const float mount_pitch_deg = degrees(quat.get_euler_pitch());
-        const float mount_yaw_ef_deg = wrap_180(degrees(quat.get_euler_yaw()) + degrees(ahrs.get_yaw()));
+        const float dist_increment_m = MAX(terrain->get_grid_spacing(), 2);
+        gcs().send_text(MAV_SEVERITY_ALERT, "Grid spacing is%d", terrain->get_grid_spacing());
         float total_dist_m = 0;
         bool get_terrain_alt_success = true;
         float prev_terrain_amsl_m = terrain_amsl_m;
@@ -596,10 +615,75 @@ void AP_Mount_Backend::calculate_poi()
             poi_calculation.att_quat = {quat[0], quat[1], quat[2], quat[3]};
             poi_calculation.loc = curr_loc;
             poi_calculation.poi_update_ms = AP_HAL::millis();
+            // Store whether this calculation used object position
+            poi_calculation.used_object_position = use_object_position;
         }
     }
 }
 #endif
+
+// Calculate object direction based on camera characteristics and object position
+bool AP_Mount_Backend::calculate_object_direction_offset(const Vector2f& obj_frame_pos, 
+                                                         Vector3f& angle_offset_rad) {
+    // Get camera information
+    float horizontal_fov_rad = 0;
+    float vertical_fov_rad = 0;
+    
+    // Try to get FOV from camera parameters
+    // #if AP_CAMERA_TRACKING_ENABLED
+    auto camera = AP_Camera::get_singleton();
+    if (camera != nullptr) {
+        camera->get_hfov(_instance,horizontal_fov_rad);
+        camera->get_vfov(_instance,vertical_fov_rad);
+        horizontal_fov_rad = radians(horizontal_fov_rad);
+        vertical_fov_rad = radians(vertical_fov_rad);
+    }
+    // #endif
+    
+    // Fallback to default FOV if not available
+    if (horizontal_fov_rad <= 0) {
+        horizontal_fov_rad = radians(60.0f);  // Default 60° horizontal FOV
+    }
+    if (vertical_fov_rad <= 0) {
+        vertical_fov_rad = radians(45.0f);    // Default 45° vertical FOV
+    }
+    
+    // Convert object frame position to angular offsets
+    // Frame coordinates: (0,0) = top-left, (1,1) = bottom-right
+    // Convert to center-relative coordinates: (-0.5 to +0.5)
+    float x_rel = obj_frame_pos.x - 0.5f;  // -0.5 (left) to +0.5 (right)
+    float y_rel = obj_frame_pos.y - 0.5f;  // -0.5 (top) to +0.5 (bottom)
+    
+    // Calculate angular offsets from camera center
+    float yaw_offset_rad = x_rel * horizontal_fov_rad;
+    float pitch_offset_rad = -y_rel * vertical_fov_rad;  // Negative because y increases downward
+    
+    angle_offset_rad = Vector3f(0, pitch_offset_rad, yaw_offset_rad);
+    return true;
+}
+
+// Get object position within camera frame from tracking system
+bool AP_Mount_Backend::get_object_position_in_frame(Vector2f& normalized_pos, float& confidence) {
+    // This should interface with your tracking system
+    // normalized_pos: (0,0) = top-left, (1,1) = bottom-right
+    // For now, get from camera tracking status
+    
+    // #if AP_CAMERA_TRACKING_ENABLED
+    // Get tracking data from camera
+    AP_Camera* camera = AP_Camera::get_singleton();
+    if (camera != nullptr) {
+        // Extract object position from camera tracking status
+        // You'll need to modify this based on your tracking implementation
+        if (camera->is_tracking_object_visible(_instance)) {
+            // Get normalized coordinates of tracked object
+            // This assumes your tracking system provides these coordinates
+            return camera->get_tracked_object_position(_instance, normalized_pos, confidence);
+        }
+    }
+    // #endif
+    
+    return false;
+}
 
 // change to RC_TARGETING mode if rc inputs have changed by more than the dead zone
 // should be called on every update
