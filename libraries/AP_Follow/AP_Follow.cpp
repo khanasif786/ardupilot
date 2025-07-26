@@ -149,6 +149,12 @@ const AP_Param::GroupInfo AP_Follow::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("_OBJ_FOLL_M", 12, AP_Follow, _object_follow_margin, 0.05),
 
+    // @Param: _POI_DELAY
+    // @DisplayName: POI DELAY
+    // @Description: POI DELAY
+    // @User: Standard
+    AP_GROUPINFO("_POI_DELAY", 13, AP_Follow, _poi_delay, 1),
+
     AP_GROUPEND
 };
 
@@ -201,7 +207,6 @@ bool AP_Follow::get_target_location_and_velocity(Location &loc, Vector3f &vel_ne
     }
 
     // project the vehicle position
-    Location last_loc;
     if (option_is_enabled(Option::OBJECT_FOLLOW_ON_ENTER)) {
         uint8_t instance = 0;
         Quaternion quat;
@@ -211,27 +216,20 @@ bool AP_Follow::get_target_location_and_velocity(Location &loc, Vector3f &vel_ne
             if (AP_Camera::get_singleton()->is_tracking_object_visible_near_center(0, obj_foll_margin)) {
                 if (AP_Mount::get_singleton()->get_poi(instance,quat,loc,poi_loc)) {
                     // -35.36326196 149.16523741 584.9
-                    poi_loc.change_alt_frame(last_loc.get_alt_frame());
-                    last_loc = poi_loc;
-                    Location ref(-353632619,1491652374,0,Location::AltFrame::ABOVE_HOME);
-                    
-                    ref.change_alt_frame(last_loc.get_alt_frame());
-                    gcs().send_text(MAV_SEVERITY_WARNING, "The distance is %f, poi_lat= %d, poi_lng=%d", ref.get_distance(poi_loc), poi_loc.lat, poi_loc.lng);
-                    return false;
-                    if (last_loc.lat == poi_loc.lat && last_loc.lng == poi_loc.lng && last_loc.alt == poi_loc.alt) {
-                        // Do nothing
+                    // Location ref(-353632619,1491652374,0,Location::AltFrame::ABOVE_HOME);
+                    // ref.change_alt_frame(_last_object_location.get_alt_frame());
+                    // gcs().send_text(MAV_SEVERITY_WARNING, "The distance is %f, poi_lat= %d, poi_lng=%d", ref.get_distance(poi_loc), poi_loc.lat, poi_loc.lng);
+                    uint32_t now_ms = AP_HAL::millis();
+                    if (now_ms - _last_poi_update_ms > _poi_delay*1000.0f) {  // Only update if POI is more than 2 seconds old
+                        poi_loc.change_alt_frame(_last_object_location.get_alt_frame());
+                        _last_object_location = poi_loc;
+                        _last_poi_update_ms = now_ms;
+                        _last_location_valid = true;
                     } else {
-                        last_loc = poi_loc;
-                        _last_location_update_ms = AP_HAL::millis();
+                        // Use cached location if POI is fresh
                     }
-                    _last_location_valid = true;
-                    _last_object_location = poi_loc;
                 } else {
                     return false;
-                }
-            } else {
-                if (_last_location_valid) {
-                    loc = _last_object_location;
                 }
             }
         } else {
@@ -240,14 +238,14 @@ bool AP_Follow::get_target_location_and_velocity(Location &loc, Vector3f &vel_ne
         }
 
     } else if (option_is_enabled(Option::MOUNT_FOLLOW_ON_ENTER)) {
-        last_loc = _target_location;
+        _last_object_location = _target_location;
     }
 
-    last_loc.offset(vel_ned.x * dt, vel_ned.y * dt);
-    last_loc.alt -= vel_ned.z * 100.0f * dt; // convert m/s to cm/s, multiply by dt.  minus because NED
+    _last_object_location.offset(vel_ned.x * dt, vel_ned.y * dt);
+    _last_object_location.alt -= vel_ned.z * 100.0f * dt; // convert m/s to cm/s, multiply by dt.  minus because NED
 
     // return latest position estimate
-    loc = last_loc;
+    loc = _last_object_location;
     return true;
 }
 

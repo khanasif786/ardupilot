@@ -42,7 +42,8 @@ public:
         YAW_BEHAVE_NONE = 0,
         YAW_BEHAVE_FACE_LEAD_VEHICLE = 1,
         YAW_BEHAVE_SAME_AS_LEAD_VEHICLE = 2,
-        YAW_BEHAVE_DIR_OF_FLIGHT = 3
+        YAW_BEHAVE_DIR_OF_FLIGHT = 3,
+        YAW_BEHAVE_OBJECT_FOLLOW = 4
     };
 
     // constructor
@@ -113,6 +114,16 @@ public:
     // returns true if a follow option enabled
     bool option_is_enabled(Option option) const { return (_options.get() & (uint16_t)option) != 0; }
 
+    // Get the last safe yaw value such that the gimbal wont acheve its limits during the object follow
+    bool get_yaw_under_gimbal_limit_to_point_to(float &yaw) { 
+        if (yaw_under_gimbal_limit_to_point_to_is_valid) {
+            yaw = yaw_under_gimbal_limit_to_point_to;
+            return true;
+        }
+        return false; 
+    }
+    void set_yaw_under_gimbal_limit_to_point_to(float yaw_cd) { yaw_under_gimbal_limit_to_point_to = yaw_cd; yaw_under_gimbal_limit_to_point_to_is_valid = true; }
+
     // parameter list
     static const struct AP_Param::GroupInfo var_info[];
 
@@ -155,6 +166,7 @@ private:
     AC_P        _p_pos;             // position error P controller
     AP_Int16    _options;           // options for mount behaviour follow mode
     AP_Float    _object_follow_margin; // object follow margin from the center of the frame
+    AP_Float    _poi_delay;
 
     // local variables
     uint32_t _last_location_update_ms;  // system time of last position update
@@ -169,6 +181,9 @@ private:
     bool _offsets_were_zero;        // true if offsets were originally zero and then initialised to the offset from lead vehicle
     Location _last_object_location; // last location of the object
     bool _last_location_valid = false;
+    uint32_t _last_poi_update_ms;       // system time of last POI update
+    float yaw_under_gimbal_limit_to_point_to;
+    bool yaw_under_gimbal_limit_to_point_to_is_valid = false;
 
     // setup jitter correction with max transport lag of 3s
     JitterCorrection _jitter{3000};

@@ -156,6 +156,10 @@ public:
     void set_mode_to_default() { set_mode_to_default(_primary); }
     void set_mode_to_default(uint8_t instance);
 
+    // gets mount's min and max yaw limits
+    void get_mount_yaw_limits(float &yaw_min, float &yaw_max) { return get_mount_yaw_limits(_primary, yaw_min, yaw_max); }
+    void get_mount_yaw_limits(uint8_t instance, float &yaw_min, float &yaw_max);
+
     // set yaw_lock used in RC_TARGETING mode.  If true, the gimbal's yaw target is maintained in earth-frame meaning it will lock onto an earth-frame heading (e.g. North)
     // If false (aka "follow") the gimbal's yaw is maintained in body-frame meaning it will rotate with the vehicle
     void set_yaw_lock(bool yaw_lock) { set_yaw_lock(_primary, yaw_lock); }

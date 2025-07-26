@@ -213,6 +213,8 @@ public:
     // enable/disable rangefinder.  Returns true on success
     virtual bool set_rangefinder_enable(bool enable) { return false; }
 
+    // get mount yaw limits
+    void get_mount_yaw_limits(float &yaw_min, float &yaw_max);
 protected:
 
     enum class MountTargetType {

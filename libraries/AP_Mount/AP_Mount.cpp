@@ -255,6 +255,16 @@ void AP_Mount::set_mode_to_default(uint8_t instance)
     backend->set_mode((enum MAV_MOUNT_MODE)_params[instance].default_mode.get());
 }
 
+// get mount's yaw limits (gimbal etc)
+void AP_Mount::get_mount_yaw_limits(uint8_t instance, float &yaw_max, float &yaw_min)
+{
+    auto *backend = get_instance(instance);
+    if (backend == nullptr) {
+        return;
+    }
+    backend->get_mount_yaw_limits(yaw_max, yaw_min);
+}
+
 // set_mode - sets mount's mode
 void AP_Mount::set_mode(uint8_t instance, enum MAV_MOUNT_MODE mode)
 {

@@ -5,6 +5,8 @@
 #include <AP_Logger/AP_Logger.h>
 #include <AP_Terrain/AP_Terrain.h>
 #include <AP_Camera/AP_Camera.h>
+#define ALLOW_DOUBLE_TRIG_FUNCTIONS 1
+#include <AP_Math/AP_Math.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -624,42 +626,49 @@ void AP_Mount_Backend::calculate_poi_with_object_tracking()
 
 // Calculate object direction based on camera characteristics and object position
 bool AP_Mount_Backend::calculate_object_direction_offset(const Vector2f& obj_frame_pos, 
-                                                         Vector3f& angle_offset_rad) {
-    // Get camera information
-    float horizontal_fov_rad = 0;
-    float vertical_fov_rad = 0;
-    
-    // Try to get FOV from camera parameters
-    // #if AP_CAMERA_TRACKING_ENABLED
-    auto camera = AP_Camera::get_singleton();
-    if (camera != nullptr) {
-        camera->get_hfov(_instance,horizontal_fov_rad);
-        camera->get_vfov(_instance,vertical_fov_rad);
-        horizontal_fov_rad = radians(horizontal_fov_rad);
-        vertical_fov_rad = radians(vertical_fov_rad);
-    }
-    // #endif
-    
-    // Fallback to default FOV if not available
-    if (horizontal_fov_rad <= 0) {
-        horizontal_fov_rad = radians(60.0f);  // Default 60° horizontal FOV
-    }
-    if (vertical_fov_rad <= 0) {
-        vertical_fov_rad = radians(45.0f);    // Default 45° vertical FOV
-    }
-    
-    // Convert object frame position to angular offsets
-    // Frame coordinates: (0,0) = top-left, (1,1) = bottom-right
-    // Convert to center-relative coordinates: (-0.5 to +0.5)
-    float x_rel = obj_frame_pos.x - 0.5f;  // -0.5 (left) to +0.5 (right)
-    float y_rel = obj_frame_pos.y - 0.5f;  // -0.5 (top) to +0.5 (bottom)
-    
-    // Calculate angular offsets from camera center
-    float yaw_offset_rad = x_rel * horizontal_fov_rad;
-    float pitch_offset_rad = -y_rel * vertical_fov_rad;  // Negative because y increases downward
-    
-    angle_offset_rad = Vector3f(0, pitch_offset_rad, yaw_offset_rad);
-    return true;
+                                                        Vector3f& angle_offset_rad) {
+   // Get camera information
+   float horizontal_fov_rad = 0;
+   float vertical_fov_rad = 0;
+   
+   auto camera = AP_Camera::get_singleton();
+   if (camera != nullptr) {
+       camera->get_hfov(_instance,horizontal_fov_rad);
+       camera->get_vfov(_instance,vertical_fov_rad);
+       horizontal_fov_rad = radians(horizontal_fov_rad);
+       vertical_fov_rad = radians(vertical_fov_rad);
+   }
+   
+   // Fallback to default FOV if not available
+   if (horizontal_fov_rad <= 0) {
+       horizontal_fov_rad = radians(115.0f);  // Your measured FOV
+   }
+   if (vertical_fov_rad <= 0) {
+       vertical_fov_rad = radians(85.0f);     // Your measured FOV
+   }
+   
+   // Image dimensions (from your Gazebo SDF)
+   const float image_width = 640.0f;
+   const float image_height = 480.0f;
+   
+   // Calculate focal length from FOV (proper camera math)
+   float focal_length_x = (image_width / 2.0f) / tanf(horizontal_fov_rad / 2.0f);
+   float focal_length_y = (image_height / 2.0f) / tanf(vertical_fov_rad / 2.0f);
+   
+   // Convert normalized coordinates to pixel coordinates
+   float pixel_x = obj_frame_pos.x * image_width;
+   float pixel_y = obj_frame_pos.y * image_height;
+   
+   // Calculate offset from center in pixels
+   float dx = pixel_x - (image_width / 2.0f);
+   float dy = pixel_y - (image_height / 2.0f);
+   
+   // Correct angular calculation using perspective projection
+   float yaw_offset_rad = atan2f(dx, focal_length_x);
+   float pitch_offset_rad = -atan2f(dy, focal_length_y);
+   
+   angle_offset_rad = Vector3f(0, pitch_offset_rad, yaw_offset_rad);
+   return true;
 }
 
 // Get object position within camera frame from tracking system
@@ -904,6 +913,11 @@ void AP_Mount_Backend::update_angle_target_from_rate(const MountTarget& rate_rad
         // if body-frame constrain yaw to body-frame limits
         angle_rad.yaw = constrain_float(angle_rad.yaw, radians(_params.yaw_angle_min), radians(_params.yaw_angle_max));
     }
+}
+
+void AP_Mount_Backend::get_mount_yaw_limits(float &yaw_min, float &yaw_max) {
+    yaw_min = _params.yaw_angle_min;
+    yaw_max = _params.yaw_angle_max;
 }
 
 // helper function to provide GIMBAL_DEVICE_FLAGS for use in GIMBAL_DEVICE_ATTITUDE_STATUS message

@@ -130,6 +130,38 @@ void ModeFollow::run()
                 break;
             }
 
+            
+            case AP_Follow::YAW_BEHAVE_OBJECT_FOLLOW: {
+                AP_Mount *mount = AP_Mount::get_singleton();
+                float yaw_max;
+                float yaw_min;
+                mount->get_mount_yaw_limits(yaw_max,yaw_min);
+                // Get gimbal attitude
+                float roll, pitch, yaw;
+                if (!mount->get_attitude_euler(mount->get_primary_instance(), roll, pitch, yaw)) {
+                    break; 
+                }
+                float last_yaw_tobe_pointed_to;
+                bool last_yaw_tobe_pointed_to_isvalid = AP_Follow::get_singleton()->get_yaw_under_gimbal_limit_to_point_to(last_yaw_tobe_pointed_to);
+                if ((abs(wrap_360(yaw_max-yaw)) < 30) || (abs(wrap_360(yaw_min - yaw)) < 30) || last_yaw_tobe_pointed_to_isvalid == false) {
+                    if (dist_vec.xy().length_squared() > 1.0) {
+                        yaw_cd = get_bearing_cd(Vector2f{}, dist_vec.xy());
+                        AP_Follow::get_singleton()->set_yaw_under_gimbal_limit_to_point_to(yaw_cd);
+                        use_yaw = true;
+                    } else {
+                        // code this
+                    }
+                }
+                last_yaw_tobe_pointed_to_isvalid = AP_Follow::get_singleton()->get_yaw_under_gimbal_limit_to_point_to(last_yaw_tobe_pointed_to);
+                if (last_yaw_tobe_pointed_to_isvalid) {
+                    yaw_cd = last_yaw_tobe_pointed_to;
+                    use_yaw = true;
+                } else {
+                    // code this
+                }
+                break;
+            }
+
             case AP_Follow::YAW_BEHAVE_NONE:
             default:
                 // do nothing
