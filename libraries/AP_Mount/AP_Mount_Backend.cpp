@@ -9,6 +9,8 @@
 #include <AP_Logger/AP_Logger.h>
 #include <AP_Terrain/AP_Terrain.h>
 #include <AP_Camera/AP_Camera.h>
+#define ALLOW_DOUBLE_TRIG_FUNCTIONS 1
+#include <AP_Math/AP_Math.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -627,7 +629,6 @@ bool AP_Mount_Backend::calculate_object_direction_offset(const Vector2f& obj_fra
    // Get camera information
    float horizontal_fov_rad = 0;
    float vertical_fov_rad = 0;
-
    auto camera = AP_Camera::get_singleton();
    if (camera != nullptr) {
        camera->get_hfov(_instance,horizontal_fov_rad);
@@ -635,7 +636,6 @@ bool AP_Mount_Backend::calculate_object_direction_offset(const Vector2f& obj_fra
        horizontal_fov_rad = radians(horizontal_fov_rad);
        vertical_fov_rad = radians(vertical_fov_rad);
    }
-
    // Fallback to default FOV if not available
    if (horizontal_fov_rad <= 0) {
        horizontal_fov_rad = radians(115.0f);
@@ -673,7 +673,6 @@ bool AP_Mount_Backend::get_object_position_in_frame(Vector2f& normalized_pos, fl
     // This should interface with your tracking system
     // normalized_pos: (0,0) = top-left, (1,1) = bottom-right
     // For now, get from camera tracking status
-
     // Get tracking data from camera
     AP_Camera* camera = AP_Camera::get_singleton();
     if (camera != nullptr) {
@@ -684,11 +683,9 @@ bool AP_Mount_Backend::get_object_position_in_frame(Vector2f& normalized_pos, fl
             return camera->get_tracked_object_position(_instance, normalized_pos, confidence);
         }
     }
-
     return false;
 }
 #endif
-
 
 // change to RC_TARGETING mode if rc inputs have changed by more than the dead zone
 // should be called on every update
