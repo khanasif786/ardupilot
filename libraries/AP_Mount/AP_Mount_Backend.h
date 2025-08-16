@@ -30,6 +30,7 @@
 #include <AP_Camera/AP_Camera_shareddefs.h>
 #include <SRV_Channel/SRV_Channel.h>
 #include "AP_Mount.h"
+#include <AP_Camera/AP_Camera_config.h>
 
 class AP_Mount_Backend
 {
@@ -213,6 +214,12 @@ public:
     // enable/disable rangefinder.  Returns true on success
     virtual bool set_rangefinder_enable(bool enable) { return false; }
 
+    // get mount yaw limits
+    void get_mount_yaw_limits(float &yaw_min, float &yaw_max);
+
+    // get mount yaw limits
+    void get_mount_pitch_limits(float &pitch_min, float &pitch_max);
+
 protected:
 
     enum class MountTargetType {
@@ -319,6 +326,12 @@ private:
 #if AP_MOUNT_POI_TO_LATLONALT_ENABLED
     // calculate the Location that the gimbal is pointing at
     void calculate_poi();
+#if AP_CAMERA_OFFBOARD_TRACKING_ENABLED
+    // Calculate object direction based on camera characteristics and object position
+    bool calculate_object_direction_offset(const Vector2f& obj_frame_pos, Vector3f& angle_offset_rad);
+    // Get object position within camera frame from tracking system
+    bool get_object_position_in_frame(Vector2f& normalized_pos, float& confidence);
+#endif // AP_CAMERA_OFFBOARD_TRACKING_ENABLED
 #endif
 
     bool _yaw_lock;                 // yaw_lock used in RC_TARGETING mode. True if the gimbal's yaw target is maintained in earth-frame, if false (aka "follow") it is maintained in body-frame

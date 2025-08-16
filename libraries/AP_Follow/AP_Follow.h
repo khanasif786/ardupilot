@@ -25,6 +25,7 @@
 #include <GCS_MAVLink/GCS_MAVLink.h>
 #include <AC_PID/AC_P.h>
 #include <AP_RTC/JitterCorrection.h>
+#include <AP_Camera/AP_Camera_config.h>
 
 //==============================================================================
 // AP_Follow Class
@@ -41,7 +42,10 @@ public:
 
     // enum for FOLLOW_OPTIONS parameter
     enum class Option {
-        MOUNT_FOLLOW_ON_ENTER = 1
+        MOUNT_FOLLOW_ON_ENTER = 1,
+#if AP_CAMERA_OFFBOARD_TRACKING_ENABLED
+        OBJECT_FOLLOW_ON_ENTER = 2
+#endif
     };
 
     // enum for YAW_BEHAVE parameter
@@ -49,7 +53,10 @@ public:
         YAW_BEHAVE_NONE = 0,
         YAW_BEHAVE_FACE_LEAD_VEHICLE = 1,
         YAW_BEHAVE_SAME_AS_LEAD_VEHICLE = 2,
-        YAW_BEHAVE_DIR_OF_FLIGHT = 3
+        YAW_BEHAVE_DIR_OF_FLIGHT = 3,
+#if AP_CAMERA_OFFBOARD_TRACKING_ENABLED
+        YAW_BEHAVE_OBJECT_FOLLOW = 4
+#endif
     };
 
     //==========================================================================
@@ -151,6 +158,24 @@ public:
     // returns true if a follow option enabled
     bool option_is_enabled(Option option) const { return (_options.get() & (uint16_t)option) != 0; }
 
+#if AP_CAMERA_OFFBOARD_TRACKING_ENABLED
+    // get object follow yaw reset 
+    float get_object_follow_yaw_reset() {float ret = _object_follow_yaw_reset.get(); return ret; }
+
+    // get object follow pitch reset 
+    float get_object_follow_pitch_reset() {float ret = _object_follow_pitch_reset.get(); return ret; }
+
+    // Get the last safe yaw value such that the gimbal wont acheve its limits during the object follow
+    bool get_yaw_under_gimbal_limit_to_point_to(float &yaw) { 
+        if (yaw_under_gimbal_limit_to_point_to_is_valid) {
+            yaw = yaw_under_gimbal_limit_to_point_to;
+            return true;
+        }
+        return false; 
+    }
+    void set_yaw_under_gimbal_limit_to_point_to(float yaw_cd) { yaw_under_gimbal_limit_to_point_to = yaw_cd; yaw_under_gimbal_limit_to_point_to_is_valid = true; }
+#endif
+
     //==========================================================================
     // Parameter Group Info
     //==========================================================================
@@ -210,6 +235,13 @@ private:
     AP_Float    _accel_max_h_degss; // Max angular acceleration for heading shaping (deg/s²)
     AP_Float    _jerk_max_h_degsss; // Max angular jerk for heading shaping (deg/s³)
 
+#if AP_CAMERA_OFFBOARD_TRACKING_ENABLED
+    AP_Float    _object_follow_margin; // object follow margin from the center of the frame
+    AP_Float    _poi_delay;
+    AP_Float    _object_follow_yaw_reset;
+    AP_Float    _object_follow_pitch_reset;
+#endif
+
     //==========================================================================
     // Internal State Variables
     //==========================================================================
@@ -243,6 +275,11 @@ private:
     bool        _using_follow_target;           // True if FOLLOW_TARGET messages are being used instead of GLOBAL_POSITION_INT
 
     HAL_Semaphore   _follow_sem;                // semaphore for multi-thread use of update_estimates and LUA calls
+
+#if AP_CAMERA_OFFBOARD_TRACKING_ENABLED
+    float yaw_under_gimbal_limit_to_point_to;
+    bool yaw_under_gimbal_limit_to_point_to_is_valid = false;
+#endif
 
     //==========================================================================
     // Utilities

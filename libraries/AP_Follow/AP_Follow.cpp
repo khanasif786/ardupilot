@@ -37,6 +37,8 @@
 #include <GCS_MAVLink/GCS.h>
 #include <AP_Vehicle/AP_Vehicle_Type.h>
 #include <AP_Scheduler/AP_Scheduler.h>
+#include <AP_Mount/AP_Mount.h>
+#include <AP_Camera/AP_Camera.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -160,7 +162,11 @@ const AP_Param::GroupInfo AP_Follow::var_info[] = {
     // @Param: _OPTIONS
     // @DisplayName: Follow options
     // @Description: Follow options bitmask
+#if AP_CAMERA_OFFBOARD_TRACKING_ENABLED
+    // @Values: 0:None,1: Mount Follows lead vehicle on mode enter, 2: Follows object tracked by the gimbal target.
+#else
     // @Values: 0:None,1: Mount Follows lead vehicle on mode enter
+#endif
     // @User: Standard
     AP_GROUPINFO("_OPTIONS", 11, AP_Follow, _options, 0),
 
@@ -211,6 +217,36 @@ const AP_Param::GroupInfo AP_Follow::var_info[] = {
     // @Units: deg/s/s/s
     // @User: Advanced
     AP_GROUPINFO("_JERK_H", 17, AP_Follow, _jerk_max_h_degsss, 360.0),
+
+    #if AP_CAMERA_OFFBOARD_TRACKING_ENABLED
+    // @Param: _OBJ_FOLL_M
+    // @DisplayName: Object follow margin
+    // @Description: Object follow margin with respect to the frame (if the object is outside margin it will not be followed)
+    // @User: Standard
+    // @Range: 0.0 0.5
+    AP_GROUPINFO("_OBJ_FOLL_M", 18, AP_Follow, _object_follow_margin, 0.05),
+
+    // @Param: _POI_DELAY
+    // @DisplayName: Point of interest delay
+    // @Description: It's how much time we wait before using the current tracked object's lat-lon-alt as the setpoint (Set this to high if the fps of the tracking is low)
+    // @User: Standard
+    // @Units: Seconds
+    AP_GROUPINFO("_POI_DELAY", 19, AP_Follow, _poi_delay, 1),
+
+    // @Param: _OBJ_Y_RST
+    // @DisplayName: Object Follow Yaw Reset
+    // @Description: At how much yaw angle of the mount (gimbal) the vehicle's yaw will reset (face towards the object), helps when gimbal's yaw is reaching its limit and can't go further while the objecting is moving out of the frame
+    // @User: Standard
+    // @Units: Degrees
+    AP_GROUPINFO("_OBJ_Y_RST", 20, AP_Follow, _object_follow_yaw_reset, 90),
+
+    // @Param: _OBJ_P_RST
+    // @DisplayName: Object Follow Pitch Reset
+    // @Description: At how much pitch angle of the mount (gimbal) the vehicle's yaw will reset (face towards the object), helps when gimbal's pitch is reaching its limit and can't go further while the objecting is moving out of the frame
+    // @User: Standard
+    // @Units: Degrees
+    AP_GROUPINFO("_OBJ_P_RST", 21, AP_Follow, _object_follow_pitch_reset, 90),
+#endif
 
 
     AP_GROUPEND
@@ -531,15 +567,16 @@ bool AP_Follow::should_handle_message(const mavlink_message_t &msg) const
         return false;
     }
 
-    // skip our own messages
-    if (msg.sysid == mavlink_system.sysid) {
-        return false;
-    }
+    // Code this for the Visual Object Follow Me mode
+    // // skip our own messages
+    // if (msg.sysid == mavlink_system.sysid) {
+    //     return false;
+    // }
 
-    // skip message if not from our target
-    if (_sysid != 0 && msg.sysid != _sysid) {
-        return false;
-    }
+    // // skip message if not from our target
+    // if (_sysid != 0 && msg.sysid != _sysid) {
+    //     return false;
+    // }
 
     return true;
 }
