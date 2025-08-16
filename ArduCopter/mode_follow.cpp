@@ -140,13 +140,14 @@ void ModeFollow::run()
                 bool cond4 = pitch < (pitch_min + g2.follow.get_object_follow_pitch_reset());
 
                 if (cond1 || cond2 || cond3 || cond4) {
-                    // gcs().send_text(MAV_SEVERITY_INFO, "Reset: y=%.1f p=%.1f c1=%d c2=%d c3=%d c4=%d", yaw, pitch, cond1, cond2, cond3, cond4);
+                    gcs().send_text(MAV_SEVERITY_INFO, "Reset: y=%.1f p=%.1f c1=%d c2=%d c3=%d c4=%d", yaw, pitch, cond1, cond2, cond3, cond4);
                     Vector3p pos_ned_m;  // vector to lead vehicle
                     Vector3f vel_ned_ms;  // velocity of lead vehicle
                     Vector3f accel_ned_mss;  // accel of lead vehicle
                     if (g2.follow.get_target_pos_vel_accel_NED_m(pos_ned_m, vel_ned_ms, accel_ned_mss)) {
                         if (pos_ned_m.xy().length_squared() > 1.0) {
                             yaw_rad = (pos_ned_m.xy() - pos_control->get_pos_target_NEU_m().xy()).tofloat().angle();
+                            AP_Follow::get_singleton()->set_yaw_under_gimbal_limit_to_point_to(yaw_rad);
                         }  else {
                             // code this
                             // Its when your object is going (slowly or by some way) such that you can't get the distance vector less than 1 and

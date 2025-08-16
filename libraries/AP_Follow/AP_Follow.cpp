@@ -230,8 +230,8 @@ const AP_Param::GroupInfo AP_Follow::var_info[] = {
     // @DisplayName: Point of interest delay
     // @Description: It's how much time we wait before using the current tracked object's lat-lon-alt as the setpoint (Set this to high if the fps of the tracking is low)
     // @User: Standard
-    // @Units: Seconds
-    AP_GROUPINFO("_POI_DELAY", 19, AP_Follow, _poi_delay, 1),
+    // @Units: ms
+    AP_GROUPINFO("_POI_DELAY", 19, AP_Follow, _poi_delay, 1000.0),
 
     // @Param: _OBJ_Y_RST
     // @DisplayName: Object Follow Yaw Reset
@@ -279,6 +279,7 @@ void AP_Follow::update_estimates()
 
     // if sysid changed, reset the estimation state
     if (_sysid != _sysid_used) {
+        gcs().send_text(MAV_SEVERITY_CRITICAL,"estimation not valid SYSID PROBLEM");
         _sysid_used = _sysid;
         _estimate_valid = false;
     }

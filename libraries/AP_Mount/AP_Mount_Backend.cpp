@@ -469,7 +469,7 @@ void AP_Mount_Backend::write_log(uint64_t timestamp_us)
     AP::logger().WriteCriticalBlock(&pkt, sizeof(pkt));
 }
 #endif
-
+#define AP_MOUNT_POI_TO_LATLONALT_ENABLED 1
 #if AP_MOUNT_POI_TO_LATLONALT_ENABLED
 // get poi information.  Returns true on success and fills in gimbal attitude, location and poi location
 bool AP_Mount_Backend::get_poi(uint8_t instance, Quaternion &quat, Location &loc, Location &poi_loc)
@@ -522,15 +522,24 @@ void AP_Mount_Backend::calculate_poi()
         // change vehicle alt to AMSL
         curr_loc.change_alt_frame(Location::AltFrame::ABSOLUTE);
 
-        // Get gimbal attitude
+        // Get gimbal attitude (body-frame quaternion)
         Quaternion quat;
         if (!get_attitude_quaternion(quat)) {
             continue;
         }
 
-        // Calculate base direction (gimbal center pointing direction)
-        float mount_pitch_deg = degrees(quat.get_euler_pitch());
-        float mount_yaw_ef_deg = wrap_180(degrees(quat.get_euler_yaw()) + degrees(ahrs.get_yaw()));
+        // Get vehicle attitude quaternion
+        Quaternion vehicle_quat;
+        if (!ahrs.get_quaternion(vehicle_quat)) {
+            continue;
+        }
+
+        // Combine quaternions: Earth_frame = Vehicle_quat * Gimbal_body_frame_quat
+        Quaternion combined_quat = vehicle_quat * quat;
+
+        // Extract earth-frame angles
+        float mount_pitch_deg = degrees(combined_quat.get_euler_pitch());
+        float mount_yaw_ef_deg = degrees(combined_quat.get_euler_yaw());
 
         // This is the part where we are doing object tracking and we are also considering the 
         // relative position of the object with respect to the frame using the camera's intrinsic

@@ -125,18 +125,13 @@ void AP_Camera_Tracking::convert_poi_to_follow_target_message_thread()
 {
     while (true) {
         // Run at 10Hz
-        hal.scheduler->delay(100);
+        hal.scheduler->delay(AP_Follow::get_singleton()->get_poi_delay());
 
         if (!_generate_follow_messages || !_tracking_active) {
             continue;
         }
 
         uint32_t now_ms = AP_HAL::millis();
-        
-        // Generate target messages at 10Hz
-        if (now_ms - _last_follow_message_ms < 100) {
-            continue;
-        }
 
         // Get POI location from mount if available
         uint8_t mount_instance = 0;
@@ -169,7 +164,6 @@ void AP_Camera_Tracking::convert_poi_to_follow_target_message_thread()
         // Option 2: Generate FOLLOW_TARGET message (more comprehensive)
         generate_follow_target_message(poi_loc, now_ms);
         GCS_SEND_TEXT(MAV_SEVERITY_INFO, "AP_Camera: GENERATED A FOLLOW MESSAGE");
-        _last_follow_message_ms = now_ms;
 
     }
 }
@@ -253,23 +247,26 @@ void AP_Camera_Tracking::generate_follow_target_message(const Location &poi_loc,
     };
     packet.alt =  altitude * 0.01f; // Convert cm to meters
 
+    Location ref(-353632619,1491652374,0,Location::AltFrame::ABOVE_HOME);
+    ref.change_alt_frame(poi_loc.get_alt_frame());
+    gcs().send_text(MAV_SEVERITY_WARNING, "The distance is %f, poi_lat= %d, poi_lng=%d", ref.get_distance(poi_loc), poi_loc.lat, poi_loc.lng);
+
     // Estimate velocity from position changes
-    // if (false) {
-    //     float dt = (timestamp_ms - _last_poi_timestamp_ms) * 0.001f;
-    //     if (dt > 0.05f && dt < 2.0f) {
-    //         float dist_north, dist_east;
-    //         poi_loc.get_distance_NE(_last_poi_location, dist_north, dist_east);
+    if (_last_poi_location_valid && (timestamp_ms > _last_poi_timestamp_ms)) {
+        float dt = (timestamp_ms - _last_poi_timestamp_ms) * 0.001f;
+        if (dt > 0.05f && dt < 2.0f) { // reasonable time delta
+            // Calculate velocity using get_distance_NE which returns Vector2f in meters
+            Vector2f distance_ne = _last_poi_location.get_distance_NE(poi_loc);
             
-    //         packet.vel[0] = dist_north / dt;  // North velocity in m/s
-    //         packet.vel[1] = dist_east / dt;   // East velocity in m/s
-    //         packet.vel[2] = (_last_poi_location.alt - poi_loc.alt) * 0.01f / dt; // Down velocity in m/s
-    //     } else {
-    //         packet.vel[0] = 0;
-    //         packet.vel[1] = 0;
-    //         packet.vel[2] = 0;
-    //     }
-    // } 
-    {
+            packet.vel[0] = distance_ne.x / dt; // North velocity in m/s
+            packet.vel[1] = distance_ne.y / dt; // East velocity in m/s
+            packet.vel[2] = (poi_loc.alt - _last_poi_location.alt) * 0.01f / dt; // Down velocity in m/s (convert cm to m)
+        } else {
+            packet.vel[0] = 0;
+            packet.vel[1] = 0;
+            packet.vel[2] = 0;
+        }
+    } else {
         packet.vel[0] = 0;
         packet.vel[1] = 0;
         packet.vel[2] = 0;
@@ -295,7 +292,7 @@ void AP_Camera_Tracking::generate_follow_target_message(const Location &poi_loc,
     packet.position_cov[2] = 1.0f;
 
     // Set estimation capabilities: position and velocity available
-    packet.est_capabilities = (1<<0); // | (1<<1); // Position and velocity
+    packet.est_capabilities = (1<<0) | (1<<1); // Position and velocity
 
     // Store current location for next calculation
     _last_poi_location = poi_loc;
@@ -303,9 +300,9 @@ void AP_Camera_Tracking::generate_follow_target_message(const Location &poi_loc,
     _last_poi_location_valid = true;
 
     // Create mavlink message
-    const uint8_t object_sysid = 200;
+    const uint8_t object_sysid = AP_Follow::get_singleton()->get_target_sysid();
     msg.sysid = object_sysid;
-    msg.compid = MAV_COMP_ID_CAMERA;
+    msg.compid = 255;
     msg.msgid = MAVLINK_MSG_ID_FOLLOW_TARGET;
 
     mavlink_msg_follow_target_encode(msg.sysid, msg.compid, &msg, &packet);

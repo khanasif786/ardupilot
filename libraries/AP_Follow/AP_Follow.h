@@ -138,6 +138,9 @@ public:
     // MAVLink Message Handling
     //==========================================================================
 
+    // get target's heading in degrees (0 = north, 90 = east)
+    bool get_target_heading_deg(float &heading) const;
+
     // parse mavlink messages which may hold target's position, velocity and attitude
     void handle_msg(const mavlink_message_t &msg);
 
@@ -174,6 +177,8 @@ public:
         return false; 
     }
     void set_yaw_under_gimbal_limit_to_point_to(float yaw_cd) { yaw_under_gimbal_limit_to_point_to = yaw_cd; yaw_under_gimbal_limit_to_point_to_is_valid = true; }
+
+    float get_poi_delay() { return _poi_delay.get(); }
 #endif
 
     //==========================================================================
