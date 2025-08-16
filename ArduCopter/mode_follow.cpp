@@ -2,6 +2,7 @@
 
 #if MODE_FOLLOW_ENABLED
 
+#include<AP_Camera/AP_Camera_Tracking.h>
 /*
  * mode_follow.cpp - follow another mavlink-enabled vehicle by system id
  *
@@ -133,7 +134,6 @@ void ModeFollow::run()
                 }
                 float last_yaw_tobe_pointed_to;
                 bool last_yaw_tobe_pointed_to_isvalid = AP_Follow::get_singleton()->get_yaw_under_gimbal_limit_to_point_to(last_yaw_tobe_pointed_to);
-
                 bool cond1 = yaw > (yaw_max - g2.follow.get_object_follow_yaw_reset());
                 bool cond2 = yaw < (yaw_min + g2.follow.get_object_follow_yaw_reset());
                 bool cond3 = !last_yaw_tobe_pointed_to_isvalid;
